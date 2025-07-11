@@ -2,6 +2,8 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.3'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
+	id 'org.sonarqube' version '4.4.1.3373'
 }
 
 group = 'com.test'
@@ -34,8 +36,96 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'com.h2database:h2'
+}
+
+sourceSets {
+	integrationTest {
+		java.srcDir file('src/integrationTest/java')
+		resources.srcDir file('src/integrationTest/resources')
+		compileClasspath += sourceSets.main.output + sourceSets.test.output
+		runtimeClasspath += output + compileClasspath
+	}
+}
+
+dependencies {
+	integrationTestImplementation sourceSets.main.output
+	integrationTestImplementation sourceSets.test.output
+	integrationTestImplementation 'org.springframework.boot:spring-boot-starter-test'
+	integrationTestImplementation 'com.h2database:h2'
+	integrationTestImplementation 'com.fasterxml.jackson.core:jackson-databind'
+	integrationTestImplementation 'org.springframework:spring-tx'
+	integrationTestImplementation 'org.springframework:spring-web'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+	finalizedBy jacocoTestReport, sonar
 }
+
+tasks.register('integrationTest', Test) {
+	description = 'Runs integration tests.'
+	group = 'verification'
+	testClassesDirs = sourceSets.integrationTest.output.classesDirs
+	classpath = sourceSets.integrationTest.runtimeClasspath
+	shouldRunAfter test
+	useJUnitPlatform()
+}
+
+check.dependsOn integrationTest
+
+tasks.named('build') {
+    dependsOn test
+}
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		html.required = true
+		xml.required = true
+		csv.required = false
+	}
+
+	doLast {
+		def htmlReportPath = reports.html.outputLocation.get().asFile
+		println "Jacoco coverage report available at: ${htmlReportPath}/index.html"
+
+		// Parse the XML report to extract the total coverage percentage
+		def reportFile = reports.xml.outputLocation.get().asFile
+		if (reportFile.exists()) {
+			def xmlText = reportFile.getText('UTF-8').replaceFirst(/<!DOCTYPE[^>]*>/, '')
+			def slurper = new groovy.xml.XmlSlurper()
+			def report = slurper.parseText(xmlText)
+			def counters = report.counter.findAll { it.@type == 'INSTRUCTION' }
+			if (counters) {
+				def covered = counters.collect { it.@covered.toBigInteger() }.sum()
+				def missed = counters.collect { it.@missed.toBigInteger() }.sum()
+				def total = covered + missed
+				def percent = total > 0 ? (covered * 100.0 / total) : 0
+				println String.format("Total project coverage: %.2f%%", percent)
+			} else {
+				println "No coverage data found in XML report."
+			}
+		} else {
+			println "Jacoco XML report not found at ${reportFile}"
+		}
+	}
+}
+
+sonarqube {
+    properties {
+        property "sonar.projectKey", "TestProject"
+        property "sonar.projectName", "TestProject"
+        property "sonar.host.url", "http://localhost:9000"
+        // For security, require the token to be set as an environment variable only
+        property "sonar.token", System.getenv("SONAR_TOKEN")
+        property "sonar.java.binaries", "build/classes"
+        property "sonar.sources", "src/main/java"
+        property "sonar.tests", "src/test/java,src/integrationTest/java"
+        property "sonar.junit.reportPaths", "build/test-results/test,build/test-results/integrationTest"
+        property "sonar.jacoco.reportPaths", "build/jacoco/test.exec"
+    }
+}
+
+// Set SonarQube to skip compile to avoid deprecation warning
+project.ext["sonar.gradle.skipCompile"] = true

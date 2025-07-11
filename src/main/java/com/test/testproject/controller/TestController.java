@@ -3,7 +3,6 @@ package com.test.testproject.controller;
 
 import com.test.testproject.model.TestTable;
 import com.test.testproject.repository.TestTableRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,8 +13,11 @@ import java.util.List;
 @RestController
 public class TestController {
 
-    @Autowired
-    private TestTableRepository repository;
+    private final TestTableRepository repository;
+
+    public TestController(TestTableRepository repository) {
+        this.repository = repository;
+    }
 
     @GetMapping("/hello")
     public String hello() {
