@@ -19,6 +19,12 @@ configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
+	integrationTestImplementation {
+        extendsFrom implementation
+    }
+    integrationTestRuntimeOnly {
+        extendsFrom runtimeOnly
+    }
 }
 
 repositories {
@@ -56,11 +62,12 @@ dependencies {
 	integrationTestImplementation 'com.fasterxml.jackson.core:jackson-databind'
 	integrationTestImplementation 'org.springframework:spring-tx'
 	integrationTestImplementation 'org.springframework:spring-web'
+	integrationTestImplementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
-	finalizedBy jacocoTestReport, sonar
+	finalizedBy jacocoTestReport, 'sonar'
 }
 
 tasks.register('integrationTest', Test) {
@@ -70,6 +77,10 @@ tasks.register('integrationTest', Test) {
 	classpath = sourceSets.integrationTest.runtimeClasspath
 	shouldRunAfter test
 	useJUnitPlatform()
+	reports {
+		junitXml.destination = file("$buildDir/test-results/integrationTest")
+		html.destination = file("$buildDir/reports/tests/integrationTest")
+	}
 }
 
 check.dependsOn integrationTest

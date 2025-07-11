@@ -3,6 +3,7 @@ package com.test.testproject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.test.testproject.model.TestTable;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -16,14 +17,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class TestProjectIntegrationTests {
-    private final MockMvc mockMvc;
-    private final ObjectMapper objectMapper;
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
     private static final String INTEGRATION_USER = "IntegrationUser";
-
-    public TestProjectIntegrationTests(MockMvc mockMvc, ObjectMapper objectMapper) {
-        this.mockMvc = mockMvc;
-        this.objectMapper = objectMapper;
-    }
 
     @Test
     void testAddAndRetrieveTestTable() throws Exception {
